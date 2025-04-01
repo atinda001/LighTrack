@@ -177,8 +177,8 @@ const QRGenerator = ({ tower, isLoading = false }: QRGeneratorProps) => {
               <div className="sm:col-span-1">
                 <dt className="text-sm font-medium text-gray-500">Status</dt>
                 <dd className="mt-1 text-sm text-gray-900 flex items-center">
-                  <span className={`status-indicator status-${tower.status}`}></span>
-                  {statusColors[tower.status].label}
+                  <span className={`status-indicator status-${tower.status || 'active'}`}></span>
+                  {tower.status && statusColors[tower.status] ? statusColors[tower.status].label : 'Active'}
                 </dd>
               </div>
               <div className="sm:col-span-1">

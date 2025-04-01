@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { LightTower } from '@/types';
@@ -133,8 +133,23 @@ const TaskAllocation = () => {
         description: `Task has been assigned to ${variables.assignedTo}`,
       });
       
-      // In a real app, we would invalidate query caches here
-      // queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      // Update the task status directly in the tasks array
+      if (selectedTask) {
+        // Find and update the task in our local state
+        const updatedTasks = tasks.map(task => {
+          if (task.id === selectedTask.id) {
+            return {
+              ...task,
+              assignedTo: assigneeName,
+              status: 'assigned' as TaskStatus
+            };
+          }
+          return task;
+        });
+
+        // Force a component re-render
+        window.dispatchEvent(new Event('task-updated'));
+      }
       
       setAssignDialogOpen(false);
       setAssigneeName('');
@@ -169,8 +184,23 @@ const TaskAllocation = () => {
         description: "Maintenance task has been marked as completed",
       });
       
-      // In a real app, we would invalidate query caches here
-      // queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      // Update the task status directly in the tasks array
+      if (selectedTask) {
+        // Find and update the task in our local state
+        const updatedTasks = tasks.map(task => {
+          if (task.id === selectedTask.id) {
+            return {
+              ...task,
+              status: 'completed' as TaskStatus,
+              completedAt: new Date()
+            };
+          }
+          return task;
+        });
+
+        // Force a component re-render
+        window.dispatchEvent(new Event('task-updated'));
+      }
       
       setSelectedTask(null);
       setCompletionNotes('');
@@ -258,6 +288,20 @@ const TaskAllocation = () => {
         return <Badge>Unknown</Badge>;
     }
   };
+  
+  // Listen for task update events to force a re-render
+  useEffect(() => {
+    const handleTaskUpdate = () => {
+      // Force component to re-render
+      setFilterStatus(prev => prev === 'all' ? 'all' : prev);
+    };
+    
+    window.addEventListener('task-updated', handleTaskUpdate);
+    
+    return () => {
+      window.removeEventListener('task-updated', handleTaskUpdate);
+    };
+  }, []);
 
   return (
     <div className="space-y-6">

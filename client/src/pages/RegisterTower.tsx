@@ -37,7 +37,6 @@ const formSchema = z.object({
   constituency: z.string().min(1, { message: 'Please select a constituency' }),
   ward: z.string().min(1, { message: 'Please select a ward' }),
   status: z.enum(['active', 'warning', 'critical']),
-  lastMaintenance: z.string().optional(),
   notes: z.string().optional(),
   confirm: z.boolean().refine(val => val === true, {
     message: 'You must confirm this is a valid light tower',
@@ -114,7 +113,6 @@ const RegisterTower = () => {
       constituency: '',
       ward: '',
       status: 'active',
-      lastMaintenance: new Date().toISOString().split('T')[0],
       notes: '',
       confirm: false,
       registeredBy: '',
@@ -132,7 +130,6 @@ const RegisterTower = () => {
         constituency: data.constituency,
         ward: data.ward,
         status: data.status,
-        lastMaintenance: data.lastMaintenance && data.lastMaintenance.trim() !== '' ? new Date(data.lastMaintenance).toISOString() : null,
         notes: data.notes,
         verificationStatus: 'pending',
         registeredBy: data.registeredBy
@@ -425,22 +422,7 @@ const RegisterTower = () => {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="lastMaintenance"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Maintenance Date (if known)</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Leave blank if unknown
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
 
                 <div className="col-span-2">
                   <FormField
