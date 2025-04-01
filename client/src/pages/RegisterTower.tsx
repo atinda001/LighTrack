@@ -132,7 +132,7 @@ const RegisterTower = () => {
         constituency: data.constituency,
         ward: data.ward,
         status: data.status,
-        lastMaintenance: data.lastMaintenance && data.lastMaintenance.trim() !== '' ? new Date(data.lastMaintenance) : undefined,
+        lastMaintenance: data.lastMaintenance && data.lastMaintenance.trim() !== '' ? new Date(data.lastMaintenance).toISOString() : null,
         notes: data.notes,
         verificationStatus: 'pending',
         registeredBy: data.registeredBy
@@ -224,46 +224,80 @@ const RegisterTower = () => {
                               placeholder="e.g. Parklands Road, near Westlands Mall" 
                               {...field} 
                             />
-                            <Button 
-                              type="button" 
-                              variant="outline" 
-                              className="w-full"
-                              onClick={() => {
-                                if (navigator.geolocation) {
-                                  toast({
-                                    title: "Getting your location...",
-                                    description: "Please allow location access if prompted."
-                                  });
+                            <div className="flex flex-col gap-2">
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                className="w-full"
+                                onClick={() => {
+                                  if (navigator.geolocation) {
+                                    toast({
+                                      title: "Getting your location...",
+                                      description: "Please allow location access if prompted."
+                                    });
+                                    
+                                    navigator.geolocation.getCurrentPosition(
+                                      (position) => {
+                                        const { latitude, longitude } = position.coords;
+                                        form.setValue('latitude', latitude.toString());
+                                        form.setValue('longitude', longitude.toString());
+                                        toast({
+                                          title: "Location obtained!",
+                                          description: `Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`,
+                                        });
+                                      },
+                                      (error) => {
+                                        toast({
+                                          title: "Location error",
+                                          description: `Could not get location: ${error.message}`,
+                                          variant: "destructive"
+                                        });
+                                      }
+                                    );
+                                  } else {
+                                    toast({
+                                      title: "Geolocation not supported",
+                                      description: "Your browser doesn't support geolocation. Please enter location manually.",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }}
+                              >
+                                <span className="mr-2">📍</span> Use my current location
+                              </Button>
+
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                className="w-full"
+                                onClick={() => {
+                                  // Determine the device platform
+                                  const userAgent = navigator.userAgent || navigator.vendor;
+                                  let mapUrl = '';
                                   
-                                  navigator.geolocation.getCurrentPosition(
-                                    (position) => {
-                                      const { latitude, longitude } = position.coords;
-                                      form.setValue('latitude', latitude.toString());
-                                      form.setValue('longitude', longitude.toString());
-                                      toast({
-                                        title: "Location obtained!",
-                                        description: `Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`,
-                                      });
-                                    },
-                                    (error) => {
-                                      toast({
-                                        title: "Location error",
-                                        description: `Could not get location: ${error.message}`,
-                                        variant: "destructive"
-                                      });
-                                    }
-                                  );
-                                } else {
+                                  if (/android/i.test(userAgent)) {
+                                    // For Android devices
+                                    mapUrl = 'geo:0,0?q=my+location';
+                                  } else if (/iPad|iPhone|iPod/.test(userAgent)) {
+                                    // For iOS devices
+                                    mapUrl = 'maps://maps.apple.com/?q=my+location';
+                                  } else {
+                                    // For desktop/others, use Google Maps
+                                    mapUrl = 'https://www.google.com/maps';
+                                  }
+                                  
+                                  // Open the maps application
+                                  window.open(mapUrl, '_blank');
+                                  
                                   toast({
-                                    title: "Geolocation not supported",
-                                    description: "Your browser doesn't support geolocation. Please enter location manually.",
-                                    variant: "destructive"
+                                    title: "Opening Maps",
+                                    description: "Please get your coordinates from the maps application and enter them manually.",
                                   });
-                                }
-                              }}
-                            >
-                              <span className="mr-2">📍</span> Use my current location
-                            </Button>
+                                }}
+                              >
+                                <span className="mr-2">🗺️</span> Open Maps App
+                              </Button>
+                            </div>
                           </div>
                         </FormControl>
                         <FormDescription>

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { LightTower } from '@/types';
+import TaskAllocation from '@/components/admin/TaskAllocation';
 
 import {
   Card,
@@ -152,6 +153,7 @@ const AdminPanel = () => {
       <Tabs defaultValue="verification" className="mb-6">
         <TabsList>
           <TabsTrigger value="verification">Tower Verification</TabsTrigger>
+          <TabsTrigger value="tasks">Task Allocation</TabsTrigger>
           <TabsTrigger value="reports">Maintenance Reports</TabsTrigger>
           <TabsTrigger value="users">User Management</TabsTrigger>
         </TabsList>
@@ -243,6 +245,11 @@ const AdminPanel = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        {/* Task Allocation Tab */}
+        <TabsContent value="tasks">
+          <TaskAllocation />
         </TabsContent>
         
         {/* Maintenance Reports Tab */}

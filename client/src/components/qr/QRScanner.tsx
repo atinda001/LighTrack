@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
+import { LightTower } from '../../types';
+import MaintenanceUpdateForm from '@/components/towers/MaintenanceUpdateForm';
 
 // Import the HTML5 QR code scanner
 // This is loaded via CDN in index.html
@@ -20,10 +23,33 @@ const QRScanner = () => {
   const [scanning, setScanning] = useState(false);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
+  const [scannedTowerId, setScannedTowerId] = useState<string | null>(null);
   const scannerRef = useRef<any>(null);
   const qrBoxRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
+  
+  // Query for tower data after scanning
+  const { data: scannedTower, isLoading: isLoadingTower } = useQuery({
+    queryKey: ['/api/towers', scannedTowerId],
+    queryFn: async () => {
+      if (!scannedTowerId) return null;
+      const response = await fetch(`/api/towers/${scannedTowerId}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast({
+            title: "Tower not found",
+            description: `No tower with ID ${scannedTowerId} found in the system.`,
+            variant: "destructive"
+          });
+          return null;
+        }
+        throw new Error('Failed to fetch tower data');
+      }
+      return response.json();
+    },
+    enabled: !!scannedTowerId,
+  });
 
   // Load the scanner library
   useEffect(() => {
@@ -119,8 +145,15 @@ const QRScanner = () => {
         description: `Tower ID: ${decodedText}`,
       });
       
-      // Redirect to the tower detail page
-      setLocation(`/generate/${decodedText}`);
+      // Set the scanned tower ID to load tower data
+      setScannedTowerId(decodedText);
+      
+      // Add to recent scans
+      const now = new Date();
+      setRecentScans(prev => [
+        { towerId: decodedText, location: 'Loading...', timestamp: now },
+        ...prev.slice(0, 4) // Keep only the 5 most recent
+      ]);
     } else {
       toast({
         title: "Invalid QR Code",
@@ -131,6 +164,12 @@ const QRScanner = () => {
       // Restart scanner after invalid scan
       setTimeout(() => startScanner(), 1000);
     }
+  };
+  
+  // Reset scan
+  const resetScan = () => {
+    setScannedTowerId(null);
+    startScanner();
   };
 
   const onScanFailure = (error: any) => {
@@ -170,81 +209,146 @@ const QRScanner = () => {
     }
   };
 
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-poppins font-medium text-textColor">Scanner</h3>
-        </div>
-        <div className="p-6">
-          <div 
-            ref={qrBoxRef} 
-            id="qr-reader" 
-            className="aspect-w-4 aspect-h-3 bg-gray-100 rounded-lg mb-4"
-            style={{ height: '250px' }}
-          >
-            {!scanning && (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <span className="material-icons text-4xl text-gray-400">qr_code_scanner</span>
-                  <p className="text-gray-500 mt-2">Camera preview will appear here</p>
-                  <button 
-                    className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                    onClick={startScanner}
-                    disabled={cameraPermission === false}
-                  >
-                    Start Camera
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          <p className="text-sm text-gray-500 mb-4">Position the QR code within the camera frame to scan automatically</p>
-          <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
-            <label className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary cursor-pointer">
-              <span className="material-icons mr-2 text-sm">photo_library</span>
-              Upload QR Image
-              <input 
-                type="file" 
-                accept="image/*" 
-                className="hidden" 
-                onChange={handleFileUpload}
-              />
-            </label>
-            <div className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary cursor-pointer">
-              <span className="material-icons mr-2 text-sm">input</span>
-              Enter Tower ID
-            </div>
-          </div>
-        </div>
-      </div>
+  // Handle form submission success
+  const handleMaintenanceSuccess = () => {
+    toast({
+      title: "Maintenance Report Submitted",
+      description: "Thank you for updating the tower status!",
+    });
+    
+    // Reset the scanner to scan another tower
+    resetScan();
+  };
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-poppins font-medium text-textColor">Recently Scanned</h3>
+  // Handle manual tower ID entry
+  const handleManualEntry = () => {
+    const towerId = prompt("Enter Tower ID (e.g., LT-001):");
+    if (towerId && towerId.startsWith('LT-')) {
+      setScannedTowerId(towerId);
+    } else if (towerId) {
+      toast({
+        title: "Invalid Tower ID",
+        description: "Tower ID must be in the format LT-XXX",
+        variant: "destructive"
+      });
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 gap-6">
+      {/* Show maintenance form when a tower is scanned, otherwise show scanner */}
+      {scannedTower ? (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 className="text-lg font-poppins font-medium text-textColor">Tower {scannedTower.towerId} Maintenance</h3>
+            <button 
+              onClick={resetScan}
+              className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <span className="material-icons mr-1 text-sm">arrow_back</span>
+              Back to Scanner
+            </button>
+          </div>
+          <div className="p-6">
+            <MaintenanceUpdateForm 
+              tower={scannedTower} 
+              onSuccess={handleMaintenanceSuccess} 
+            />
+          </div>
         </div>
-        <div className="divide-y divide-gray-200 max-h-80 overflow-y-auto">
-          {recentScans.length > 0 ? (
-            recentScans.map((scan, index) => (
-              <div key={index} className="p-4 hover:bg-gray-50">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="material-icons text-primary">lightbulb</span>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-900">Tower {scan.towerId}</p>
-                    <p className="text-xs text-gray-500">{scan.location} • Scanned {formatRelativeTime(scan.timestamp)}</p>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="p-4 text-center text-sm text-gray-500">
-              No recent scans
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-lg font-poppins font-medium text-textColor">Scanner</h3>
             </div>
-          )}
+            <div className="p-6">
+              <div 
+                ref={qrBoxRef} 
+                id="qr-reader" 
+                className="aspect-w-4 aspect-h-3 bg-gray-100 rounded-lg mb-4"
+                style={{ height: '250px' }}
+              >
+                {!scanning && !isLoadingTower && (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <span className="material-icons text-4xl text-gray-400">qr_code_scanner</span>
+                      <p className="text-gray-500 mt-2">Camera preview will appear here</p>
+                      <button 
+                        className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                        onClick={startScanner}
+                        disabled={cameraPermission === false}
+                      >
+                        Start Camera
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {isLoadingTower && (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <span className="material-icons text-4xl text-primary animate-pulse">search</span>
+                      <p className="text-gray-500 mt-2">Looking up tower information...</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mb-4">Position the QR code within the camera frame to scan automatically</p>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
+                <label className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary cursor-pointer">
+                  <span className="material-icons mr-2 text-sm">photo_library</span>
+                  Upload QR Image
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleFileUpload}
+                  />
+                </label>
+                <button
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  onClick={handleManualEntry}
+                >
+                  <span className="material-icons mr-2 text-sm">input</span>
+                  Enter Tower ID
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-lg font-poppins font-medium text-textColor">Recently Scanned</h3>
+            </div>
+            <div className="divide-y divide-gray-200 max-h-80 overflow-y-auto">
+              {recentScans.length > 0 ? (
+                recentScans.map((scan, index) => (
+                  <div 
+                    key={index} 
+                    className="p-4 hover:bg-gray-50 cursor-pointer"
+                    onClick={() => setScannedTowerId(scan.towerId)}
+                  >
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <span className="material-icons text-primary">lightbulb</span>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-gray-900">Tower {scan.towerId}</p>
+                        <p className="text-xs text-gray-500">{scan.location} • Scanned {formatRelativeTime(scan.timestamp)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-center text-sm text-gray-500">
+                  No recent scans
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
