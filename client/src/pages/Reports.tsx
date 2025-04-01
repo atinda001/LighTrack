@@ -63,7 +63,7 @@ const Reports = () => {
   });
   
   // Filter towers by constituency if selected
-  const filteredTowers = constituencyFilter
+  const filteredTowers = constituencyFilter && constituencyFilter !== 'all'
     ? towers.filter(tower => tower.constituency === constituencyFilter)
     : towers;
   
@@ -116,7 +116,7 @@ const Reports = () => {
               <SelectValue placeholder="All Constituencies" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Constituencies</SelectItem>
+              <SelectItem value="all">All Constituencies</SelectItem>
               {filters.constituencies.map(constituency => (
                 <SelectItem key={constituency} value={constituency}>{constituency}</SelectItem>
               ))}

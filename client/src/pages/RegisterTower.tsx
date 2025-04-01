@@ -31,6 +31,7 @@ import { Filters } from '@/types';
 
 // Create schema for tower registration form
 const formSchema = z.object({
+  towerId: z.string().optional(),
   location: z.string().min(5, { message: 'Location must be at least 5 characters' }),
   constituency: z.string().min(1, { message: 'Please select a constituency' }),
   ward: z.string().min(1, { message: 'Please select a ward' }),
@@ -60,6 +61,7 @@ const RegisterTower = () => {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      towerId: '',
       location: '',
       constituency: '',
       ward: '',
@@ -76,6 +78,7 @@ const RegisterTower = () => {
     mutationFn: async (data: FormValues) => {
       // Transform the data to match the API requirements
       const payload = {
+        towerId: data.towerId || undefined,
         location: data.location,
         constituency: data.constituency,
         ward: data.ward,
@@ -131,6 +134,26 @@ const RegisterTower = () => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="towerId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tower ID (Optional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g. LT-123 (leave blank for auto-generate)" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        A unique identifier for this tower. Leave blank to auto-generate.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
                 <div className="col-span-2">
                   <FormField
                     control={form.control}

@@ -58,6 +58,8 @@ export const users = pgTable("users", {
 export const insertLightTowerSchema = createInsertSchema(lightTowers).omit({
   id: true,
   createdAt: true
+}).partial({
+  towerId: true
 });
 
 export const insertMaintenanceReportSchema = createInsertSchema(maintenanceReports).omit({
