@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,8 +31,9 @@ import { Filters } from '@/types';
 
 // Create schema for tower registration form
 const formSchema = z.object({
-  towerId: z.string().optional(),
   location: z.string().min(5, { message: 'Location must be at least 5 characters' }),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
   constituency: z.string().min(1, { message: 'Please select a constituency' }),
   ward: z.string().min(1, { message: 'Please select a ward' }),
   status: z.enum(['active', 'warning', 'critical']),
@@ -56,13 +57,60 @@ const RegisterTower = () => {
   const { data: filters = { constituencies: [], wards: [] } } = useQuery<Filters>({
     queryKey: ['/api/filters'],
   });
+  
+  // Store filtered wards based on selected constituency
+  const [filteredWards, setFilteredWards] = useState<string[]>([]);
+  
+  // Function to get wards for a constituency by filtering from the list 
+  const getWardsForConstituency = (constituency: string): string[] => {
+    // Try to filter based on naming patterns in Nairobi
+    switch (constituency) {
+      case 'Dagoretti North':
+        return ['Kilimani', 'Kawangware', 'Gatina', 'Kileleshwa', 'Kabiro'];
+      case 'Dagoretti South':
+        return ['Mutuini', 'Ngando', 'Riruta', 'Uthiru/Ruthimitu', 'Waithaka'];
+      case 'Embakasi Central':
+        return ['Kayole North', 'Kayole Central', 'Kayole South', 'Komarock', 'Matopeni/Spring Valley'];
+      case 'Embakasi East':
+        return ['Upper Savanna', 'Lower Savanna', 'Embakasi', 'Utawala', 'Mihango'];
+      case 'Embakasi North':
+        return ['Kariobangi North', 'Dandora Area I', 'Dandora Area II', 'Dandora Area III', 'Dandora Area IV'];
+      case 'Embakasi South':
+        return ['Imara Daima', 'Kwa Njenga', 'Kwa Reuben', 'Pipeline', 'Kware'];
+      case 'Embakasi West':
+        return ['Umoja I', 'Umoja II', 'Mowlem', 'Kariobangi South'];
+      case 'Kamukunji':
+        return ['Pumwani', 'Eastleigh North', 'Eastleigh South', 'Airbase', 'California'];
+      case 'Kasarani':
+        return ['Clay City', 'Mwiki', 'Kasarani', 'Njiru', 'Ruai'];
+      case 'Kibra':
+        return ['Laini Saba', 'Lindi', 'Makina', 'Woodley/Kenyatta Golf Course', 'Sarangombe'];
+      case 'Langata':
+        return ['Karen', 'Nairobi West', 'Mugumo-Ini', 'South C', 'Nyayo Highrise'];
+      case 'Makadara':
+        return ['Maringo/Hamza', 'Viwandani', 'Harambee', 'Makongeni'];
+      case 'Mathare':
+        return ['Hospital', 'Mabatini', 'Huruma', 'Ngei', 'Mlango Kubwa', 'Kiamaiko'];
+      case 'Roysambu':
+        return ['Githurai', 'Kahawa West', 'Zimmerman', 'Roysambu', 'Kahawa'];
+      case 'Ruaraka':
+        return ['Baba Dogo', 'Utalii', 'Mathare North', 'Lucky Summer', 'Korogocho'];
+      case 'Starehe':
+        return ['Nairobi Central', 'Ngara', 'Pangani', 'Ziwani/Kariokor', 'Landimawe', 'Nairobi South'];
+      case 'Westlands':
+        return ['Kitisuru', 'Parklands/Highridge', 'Karura', 'Kangemi', 'Mountain View'];
+      default:
+        return [];
+    }
+  };
 
   // Set up form with validation
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      towerId: '',
       location: '',
+      latitude: '',
+      longitude: '',
       constituency: '',
       ward: '',
       status: 'active',
@@ -78,12 +126,13 @@ const RegisterTower = () => {
     mutationFn: async (data: FormValues) => {
       // Transform the data to match the API requirements
       const payload = {
-        towerId: data.towerId || undefined,
         location: data.location,
+        latitude: data.latitude || null,
+        longitude: data.longitude || null,
         constituency: data.constituency,
         ward: data.ward,
         status: data.status,
-        lastMaintenance: data.lastMaintenance ? new Date(data.lastMaintenance) : undefined,
+        lastMaintenance: data.lastMaintenance && data.lastMaintenance.trim() !== '' ? new Date(data.lastMaintenance) : undefined,
         notes: data.notes,
         verificationStatus: 'pending',
         registeredBy: data.registeredBy
@@ -117,6 +166,33 @@ const RegisterTower = () => {
     },
   });
 
+  // Watch for constituency changes and update wards list
+  useEffect(() => {
+    // When filters are loaded, initialize with all wards
+    if (filters.wards.length > 0 && filteredWards.length === 0) {
+      setFilteredWards(filters.wards);
+    }
+  }, [filters.wards, filteredWards]);
+  
+  // Watch constituency field
+  const constituency = form.watch('constituency');
+  
+  // Update wards when constituency changes
+  useEffect(() => {
+    // If no constituency is selected, show all wards
+    if (!constituency || constituency.trim() === '') {
+      setFilteredWards(filters.wards);
+      return;
+    }
+    
+    // Reset ward selection when constituency changes
+    form.setValue('ward', '');
+    
+    // Update the ward list based on the selected constituency
+    const wards = getWardsForConstituency(constituency);
+    setFilteredWards(wards);
+  }, [constituency, filters.wards, form]);
+
   const onSubmit = (data: FormValues) => {
     setIsSubmitting(true);
     mutation.mutate(data);
@@ -134,26 +210,7 @@ const RegisterTower = () => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="towerId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tower ID (Optional)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g. LT-123 (leave blank for auto-generate)" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        A unique identifier for this tower. Leave blank to auto-generate.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
+
                 <div className="col-span-2">
                   <FormField
                     control={form.control}
@@ -162,19 +219,95 @@ const RegisterTower = () => {
                       <FormItem>
                         <FormLabel>Light Tower Location</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="e.g. Parklands Road, near Westlands Mall" 
-                            {...field} 
-                          />
+                          <div className="space-y-2">
+                            <Input 
+                              placeholder="e.g. Parklands Road, near Westlands Mall" 
+                              {...field} 
+                            />
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              className="w-full"
+                              onClick={() => {
+                                if (navigator.geolocation) {
+                                  toast({
+                                    title: "Getting your location...",
+                                    description: "Please allow location access if prompted."
+                                  });
+                                  
+                                  navigator.geolocation.getCurrentPosition(
+                                    (position) => {
+                                      const { latitude, longitude } = position.coords;
+                                      form.setValue('latitude', latitude.toString());
+                                      form.setValue('longitude', longitude.toString());
+                                      toast({
+                                        title: "Location obtained!",
+                                        description: `Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`,
+                                      });
+                                    },
+                                    (error) => {
+                                      toast({
+                                        title: "Location error",
+                                        description: `Could not get location: ${error.message}`,
+                                        variant: "destructive"
+                                      });
+                                    }
+                                  );
+                                } else {
+                                  toast({
+                                    title: "Geolocation not supported",
+                                    description: "Your browser doesn't support geolocation. Please enter location manually.",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }}
+                            >
+                              <span className="mr-2">📍</span> Use my current location
+                            </Button>
+                          </div>
                         </FormControl>
                         <FormDescription>
-                          Provide a detailed location to help others find the tower
+                          Provide a detailed location to help others find the tower. For best results, use the "Use my current location" button when you're at the tower site.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
+                
+                <FormField
+                  control={form.control}
+                  name="latitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Latitude</FormLabel>
+                      <FormControl>
+                        <Input placeholder="-1.2644" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Optional: The exact latitude coordinates
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="longitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Longitude</FormLabel>
+                      <FormControl>
+                        <Input placeholder="36.8066" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Optional: The exact longitude coordinates
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
@@ -220,7 +353,7 @@ const RegisterTower = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {filters.wards.map(ward => (
+                          {filteredWards.map(ward => (
                             <SelectItem key={ward} value={ward}>
                               {ward}
                             </SelectItem>

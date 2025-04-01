@@ -192,6 +192,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get filters data (constituencies and wards)
   app.get(`${apiPrefix}/filters`, async (_req: Request, res: Response) => {
     try {
+      // Import Nairobi constituencies and wards
+      const { NAIROBI_CONSTITUENCIES, NAIROBI_WARDS } = await import('./data/nairobi');
+      
+      res.json({ 
+        constituencies: NAIROBI_CONSTITUENCIES,
+        wards: NAIROBI_WARDS
+      });
+    } catch (error) {
+      // Fallback to old method if import fails
       const towers = await storage.getAllLightTowers();
       
       // Extract unique constituencies and wards
@@ -199,8 +208,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const wards = [...new Set(towers.map(tower => tower.ward))];
       
       res.json({ constituencies, wards });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch filters data" });
     }
   });
 

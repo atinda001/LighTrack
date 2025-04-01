@@ -226,9 +226,9 @@ export class MemStorage implements IStorage {
     const sampleTowers = [
       {
         towerId: 'LT-001',
-        location: 'Westlands, Parklands Road',
+        location: 'Parklands Road, near Westlands Mall',
         constituency: 'Westlands',
-        ward: 'Parklands',
+        ward: 'Parklands/Highridge',
         latitude: '-1.2644',
         longitude: '36.8066',
         status: 'active',
@@ -237,7 +237,7 @@ export class MemStorage implements IStorage {
       },
       {
         towerId: 'LT-002',
-        location: 'Langata, Madaraka Estate',
+        location: 'Madaraka Estate, main junction',
         constituency: 'Langata',
         ward: 'South C',
         latitude: '-1.3075',
@@ -248,7 +248,7 @@ export class MemStorage implements IStorage {
       },
       {
         towerId: 'LT-003',
-        location: 'Kibra, Olympic Estate',
+        location: 'Olympic Estate, main road',
         constituency: 'Kibra',
         ward: 'Sarangombe',
         latitude: '-1.3106',
@@ -259,7 +259,7 @@ export class MemStorage implements IStorage {
       },
       {
         towerId: 'LT-004',
-        location: 'Roysambu, Mirema Drive',
+        location: 'Mirema Drive, near TRM Mall',
         constituency: 'Roysambu',
         ward: 'Roysambu',
         latitude: '-1.2188',
@@ -270,7 +270,7 @@ export class MemStorage implements IStorage {
       },
       {
         towerId: 'LT-005',
-        location: 'Dagoretti North, Kawangware',
+        location: 'Kawangware, Congo junction',
         constituency: 'Dagoretti North',
         ward: 'Kawangware',
         latitude: '-1.2856',
@@ -302,13 +302,13 @@ export class MemStorage implements IStorage {
       {
         towerId: 5,
         activityType: 'maintenance',
-        description: 'Tower LT-007 maintenance completed',
+        description: 'Tower LT-005 maintenance completed',
         performedBy: 'Maintenance Team'
       },
       {
         towerId: 4,
         activityType: 'registration',
-        description: 'New tower LT-012 registered in Kibra',
+        description: 'New tower LT-004 registered in Roysambu',
         performedBy: 'Community Admin'
       }
     ];
